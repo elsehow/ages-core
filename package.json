@@ -6,12 +6,13 @@
     "test": "*.js"
   },
   "scripts": {
-    "test": "node test/*.js",
+    "test": "node --harmony_destructuring test/*.js",
     "watch": "npm-watch"
   },
   "devDependencies": {
     "npm-watch": "^0.1.3"
   },
   "dependencies": {
+    "kefir": "^3.2.1"
   }
 }
