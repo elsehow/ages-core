@@ -1,86 +1,63 @@
 'use strict'
 const test = require('tape')
-const mod = require('..')
 const Kefir = require('kefir')
-const EventEmitter = require('events').EventEmitter
-
-const streamAndEmitter = (em, ev) => {
-  return [
-    (x) => em.emit(ev, x),
-    Kefir.fromEvents(em, ev)
+// a scrpt for testing
+// each element of the array is a list
+// of command / expected result
+/*
+  [
+    ['command', 'expected effect'],
+    ...
   ]
-}
+*/
+let script = [
+  ['say hello', 'Elsehow says "hello."'],
+  ['look', 'Description of the room...'],
+  ['look at door', 'Description of the room...'],
+  [':shakes his head. "It\'s majestic," he says.', 'Elsehow shakes his head. "It\'s majestic," he says.'],
+  ['fall through the book', 'I didn\'t understand that, sorry.']
+]
+// takes a scrpt s (see format below),
+function runThrough (scrpt, a, t) {
 
-const coreCommands = (outF) => {
-  return [
-    {"say {something}": ({something}) => {
-      outF(`Elsehow says \"${something}.\"`)
-    }},
-    {"look": () => {
-      outF(`Description of the room...`)
-    }},
-    {":{does}": ({does}) => {
-      outF(`Elsehow ${does}`)
-    }},
-  ]
-}
+  var checkOutput = () => {}
+  var first = scrpt[0]
+  var rest = scrpt.slice(1)
+  var initialVal = send(t, first[0], first[1])
 
-// TODO in the future, will take /at least/ a hyperkv-like object, and a starting location
-// TODO in the further future, probably an identity and a relay server, as well
-function ages () {
+  function setToExpect (t, out, cb) {
+    checkOutput = (x) => {
+      t.deepEqual(x, out, out)
+      a.outputS.offValue(checkOutput)
+      if (cb) cb()
+    }
+    a.outputS.onValue(checkOutput)
+  }
 
-  let emitter = new EventEmitter()
-  let [inputF, inputS] = streamAndEmitter(emitter, 'input')
-  let [outputF, outputS] = streamAndEmitter(emitter, 'output')
-  let cmdr = require('text-commander')(coreCommands(outputF))
-
-  let em2 = new EventEmitter()
-  inputS
-    .map(cmdr) // warning - side-effecty
-    .filter(x => x==false)
-    .onValue(() => {
-      outputF("I didn't understand that, sorry.")
+  function send (t, cmd, expected, cb) {
+    return Kefir.stream(emitter => {
+      setToExpect(t, expected, emitter.emit)
+      a.inputF(cmd)
     })
-
-  return {
-    inputF: inputF,
-    outputS: outputS,
   }
+
+  return rest.reduce((acc, cur) => {
+    return acc.flatMap(() => {
+      return send(t, cur[0], cur[1])
+    })
+  }, initialVal)
 }
 
-const a = ages()
-//process.stdin.on('data', a.inputF)
+// tests proper -----------------------------------------------------------/
 
-//a.outputS.log('output')
+const ages = require('..')
+// smells like recursion
+// a reduce, where the accumulator is the send stream,
+// to which we can flatmap something and pas it on
+// at the last step, we .onValue(t.end)
 
-var checkOutput = () => {}
-function setToExpect (out, cb) {
-  checkOutput = (x) => {
-    console.log(x === out, x, out)
-    a.outputS.offValue(checkOutput)
-    if (cb) cb()
-  }
-  a.outputS.onValue(checkOutput)
-}
-
-function send (cmd, expected, cb) {
-  setToExpect(expected, cb)
-  a.inputF(cmd)
-}
-
-//setToExpect('Elsehow says "hello."')
-//a.inputF('say hello')
-//setToExpect('Description of the room...')
-//a.inputF('look')
-
-send('say hello', 'Elsehow says "hello.",', () => {
-  send('look', 'Description of the room...', () => {
-    send('look at door', 'Description of the room...')
-  })
+test('test script', t => {
+  let ag = ages()
+  runThrough(script, ag, t).onValue(t.end)
 })
-
-a.inputF('look at door')
-a.inputF(':shakes his head. "It\'s majestic," he says.')
-a.inputF('fall through the book')
-
 
