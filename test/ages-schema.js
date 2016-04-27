@@ -1,7 +1,6 @@
 'use strict';
 const verify = require('../src/ages-schema')
 const test = require('tape')
-console.log(verify)
 
 function goodPlaceObj () {
   return {

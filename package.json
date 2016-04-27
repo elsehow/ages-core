@@ -6,7 +6,7 @@
     "test": "*.js"
   },
   "scripts": {
-    "test": "node --harmony_destructuring test/*.js",
+    "test": "tape test/*.js",
     "watch": "npm-watch"
   },
   "devDependencies": {
