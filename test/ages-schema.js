@@ -1,5 +1,6 @@
 'use strict';
-const verify = require('../src/ages-schema')
+const verify = require('../src/ages-schema').verify
+const space = require('../src/ages-schema').space
 const test = require('tape')
 
 function goodPlaceObj () {
@@ -89,3 +90,22 @@ test('should sanitize bad strings', t=> {
   t.end()
 })
 
+
+test('can use space() fn to make a new, valid space object', t => {
+  t.throws(() => {
+    space()
+  })
+  t.throws(() => {
+    space('not enough args')
+  })
+  t.throws(() => {
+    space(52, 33)
+  })
+  let n = 'a quiet island dock'
+  let d = 'a book sits on a pedestal'
+  let sp = space(n, d)
+  t.ok(sp)
+  t.deepEqual(sp.name, n)
+  t.deepEqual(sp.description, d)
+  t.end()
+})

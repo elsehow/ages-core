@@ -1,63 +1,45 @@
 const every = require('lodash.every')
 const isString = require('lodash.isstring')
 const sanitizer = require('sanitizer')
+const schemaError = new Error('Schema error: space requires name and description.')
 /*
   ages-schema
   elsehow
 
-  verifies and sanitizes data structures that
-  get written to the hyperlog
-  AND data structures that get read off the hyperlog.
-  (we never know what some cooky peer might be doing)
+  verifies data structures that
+  get written to *and from* the hyperlog
+  and sanitizes all strings (removing script tags etc)
 
-  exports a function verify
-  which takes a value from a hyperkv
+  the schema for spaces is
 
-  (1) it returns a value if value passed in is apparently legitimate application state
-      otherwise, it returns undefined
-
-  (2) the value it returns is sanitized
-      (no funny business with the string values)
-,*/
-
-function verify (v, cb) {
-  if (validate(v))
-    return sanitize(v)
-  return
-}
-
-/*
-  validate
-  here's the schema what we want to see:
-
+  {
     name 'string'
     description 'string'
-    edges [
-      {
-        command: 'string',
-        goesTo: 'string'
-      },
-     ...
+    edges [{
+      command: 'string',
+      goesTo: 'string'
+    },
+    ...
     ]
-,*/
+  }
+
+*/
 
 function validate (v) {
   return isString(v.name) &&
     isString(v.description) &&
     ((v.edges &&
-       v.edges.length &&
+      (v.edges.length==0 || v.edges.length>0) &&
        every(v.edges.map(e => {
          return isString(e.command) && isString(e.goesTo)
        }))) || !v.edges)
 }
 
 /*
-  TODO sanitize
+  sanitize
 
-  no script tags in strings
-  no weird escapes with javascript thrown in
-  in fact, maybe a limited charset overall, if that makes it easy
-    (or hard....)
+  no script tags in any object string
+  this only gets called if object schema has been validated
 ,*/
 
 function sanitize (v) {
@@ -73,5 +55,48 @@ function sanitize (v) {
   return v
 }
 
+/*
+  verify
 
-module.exports = verify
+  (1) it returns a value if value passed in is apparently legitimate application state
+  otherwise, it returns undefined
+
+  (2) the value it returns is sanitized
+  (no funny business with the string values)
+  ,*/
+
+function verify (v, cb) {
+  if (validate(v))
+    return sanitize(v)
+  return
+}
+
+
+/*
+  space
+
+  produce a space object
+  takes a place name (string) and description (string)
+  and a list of edges of the form [{ command: 'string', goesTo: 'placeName' }]
+  */
+
+function space (n, d, edgesL) {
+  if (!edgesL)
+    edgesL = []
+  var pl = {
+    name: n,
+    description: d,
+    edges: edgesL,
+  }
+  var valid = verify(pl)
+  if (valid)
+    return valid
+  throw schemaError
+}
+
+
+module.exports = {
+  verify: verify,
+  space: space,
+  error: schemaError,
+}
