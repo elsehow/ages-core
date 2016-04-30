@@ -155,9 +155,9 @@ test('find() calls back null, undefined on err, place, respectively, if we try t
 test('find() calls back null, undefined on err, place, respectively, if we get something with a bad schema from the hyperkv', t => {
   let hkv = makeHyperkv()
   let sp = spatial(hkv)
-  hkv.put('a quiet library', { bad: 'thing'}, (err, res) => {
+  hkv.put(placeName1, { bad: 'thing'}, (err, res) => {
     t.ok(res)
-    sp.find('a quiet library', (err, res) => {
+    sp.find(placeName1, (err, res) => {
       t.deepEqual(err, null)
       t.deepEqual(res, undefined)
       t.end()

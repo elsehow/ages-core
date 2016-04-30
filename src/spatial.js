@@ -1,6 +1,46 @@
-'use strict';
+/*
 
-const schema = require('./ages-schema')
+  spatial.js
+  elsehow
+
+  a function that takes a hyperkv-like object.
+  enforces schema defined in spatial-schema.js.
+  executing the function on a hyperkv-like object
+  returns an object with methods:
+
+    find(placeName, cb)
+
+      calls back (err, res) on place with name.
+      if no such place found, calls back null, undefined
+
+    describe(placeName, placeDescription, cb)
+
+      calls back (err, res) when place is described
+
+    link(placeName1, placeName2, command, cb)
+
+      calls back (err, res) where res is modified placeName1.
+      (remember that links are directed - this command modifies
+      place1, not place2.) calls back err if trying to link from
+      a place that doesn't exist. (linking to a place that doesn't
+      exist is fine).
+
+    unlink(placeName1, command, cb)
+
+      removes the link from place1 described by command. calls back
+      (err, res) res is the modified place1 - will call back error if
+      command doesn't exist in place1, or if place1 doesn't exist.
+
+    createReadStream(opts)
+
+      wraps underlying hyperkv/hyperlog createReadStream(). however,
+      it will filter all nodes coming thorugh the log that don't match
+      space schema.
+
+*/
+
+'use strict';
+const schema = require('./spatial-schema')
 const schemaError = new Error('Schema error: space requires name (string) and description (string). See API.')
 const through = require('through2')
 
@@ -101,4 +141,5 @@ function spatial (hkv) {
     createReadStream: createReadStream,
   }
 }
+
 module.exports = spatial
