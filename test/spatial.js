@@ -110,35 +110,115 @@ test('can unlink one location from another via its command', t => {
 })
 
 
-// TODO below
-// 
-// // that it fails as it should -----------------------------------------------------
-// test('describe() calls back error if we mess up types or something', t => {
-//   t.end()
-// })
-//
-//test('get() calls back error if we try to get a place that doesnt exist', t => {
-//  t.end()
-//})
-//
-// test('get() calls back error if we get something with a bad schema from the hyperkv', t => {
-//   t.end()
-// })
-// 
-// test('link() calls back error if we try to link FROM a place that doesnt exist', t => {t.end()
-// })
-// 
-// test('unlink() calls back error if we try to unlink FROM a place that doesnt exist', t => {t.end()
-//                                                                                       })
-// 
-// test('link() calls back error if we try to link to something that isnt sanitary (e.g. a place with script tags, with a command that has script tags)', t => {
-//   t.end()
-// })
-// 
-// test('unlink() calls back error if we unlink a command that doesnt exist in a place', t => {
-//   t.end()
-// })
+// edge & error cases ------------------------------------------------------------------------
 
-// test('createReadStream will feed only verified new nodes - will ignore funny nodes', t => {
-//   t.end()
-// })
+test('describe() calls back error if we mess up types or something', t => {
+  let sp = spatial(makeHyperkv())
+  sp.describe(placeName1, 52, (err, res) => {
+    t.ok(err)
+    sp.describe(51, placeName1, (err, res) => {
+      t.ok(err)
+      sp.describe(placeName1, {wow: 'nice'}, (err, res) => {
+        t.ok(err)
+        t.end()
+      })
+    })
+  })
+})
+
+test('find() will sanitize a place with script tags', t => {
+  let hkv = makeHyperkv()
+  let sp = spatial(hkv)
+  hkv.put(placeName1, {
+    name: placeName1,
+    description: placeDesc1 + '<script>alert("hacked")</script',
+  }, (err, res) => {
+    t.ok(res)
+    sp.find(placeName1, (e, p) => {
+      t.notOk(e)
+      t.ok(p)
+      t.deepEquals(p.description, placeDesc1)
+      t.end()
+    })
+  })
+})
+
+test('find() calls back null, undefined on err, place, respectively, if we try to get a place that doesnt exist', t => {
+  let sp = spatial(makeHyperkv())
+  sp.find('gobbldigook', (err, res) => {
+    t.deepEqual(err, null)
+    t.deepEqual(res, undefined)
+    t.end()
+  })
+})
+
+test('find() calls back null, undefined on err, place, respectively, if we get something with a bad schema from the hyperkv', t => {
+  let hkv = makeHyperkv()
+  let sp = spatial(hkv)
+  hkv.put('a quiet library', { bad: 'thing'}, (err, res) => {
+    t.ok(res)
+    sp.find('a quiet library', (err, res) => {
+      t.deepEqual(err, null)
+      t.deepEqual(res, undefined)
+      t.end()
+    })
+  })
+})
+
+test('link() calls back error if we try to link FROM a place that doesnt exist', t => {
+  let sp = spatial(makeHyperkv())
+  sp.link(placeName1, placeName2, command, (err, res) => {
+    t.ok(err)
+    t.notOk(res)
+    t.end()
+  })
+})
+
+test('unlink() calls back error if we try to unlink FROM a place that doesnt exist', t => {
+  let sp = spatial(makeHyperkv())
+  sp.unlink(placeName1, command, (err, res) => {
+    t.ok(err)
+    t.notOk(res)
+    t.end()
+  })
+})
+
+test('unlink() calls back error, and unmodified place, if we unlink a command that doesnt exist in a place', t => {
+  let sp = spatial(makeHyperkv())
+  sp.describe(placeName1, placeDesc1, (err1, res1) => {
+    sp.link(placeName1, placeName2, command, (err2, res2) => {
+      sp.unlink(placeName1, 'some random command', (err3, res3) => {
+        t.ok(err3)
+        t.deepEquals(res3, res2)
+        t.end()
+      })
+    })
+  })
+})
+
+test('createReadStream will feed only verified new nodes - will ignore funny nodes', t => {
+  let hkv = makeHyperkv()
+  let sp = spatial(hkv)
+  // descriptions we expect to see
+  let i = 0
+  let expectedDescs = [
+    placeDesc1,
+    placeDesc2,
+  ]
+  // make a read stream
+  sp.createReadStream({live: true}).on('data', space => {
+    t.deepEqual(space.description, expectedDescs[i])
+    i+=1
+    if (i == expectedDescs.length)
+      t.end()
+  })
+  // put good thing on the log
+  sp.describe(placeName1, placeDesc1, (e1, r1) => {
+    // put bad thing on the log
+    hkv.put('bad thing', {bad: 'thing'}, (e2, r2) => {
+      // put a good thing on the log
+      sp.describe(placeName2, placeDesc2, (e3, r3) => {
+      })
+    })
+  })
+})

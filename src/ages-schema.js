@@ -1,7 +1,6 @@
 const every = require('lodash.every')
 const isString = require('lodash.isstring')
 const sanitizer = require('sanitizer')
-const schemaError = new Error('Schema error: space requires name and description.')
 /*
   ages-schema
   elsehow
@@ -91,12 +90,11 @@ function space (n, d, edgesL) {
   var valid = verify(pl)
   if (valid)
     return valid
-  throw schemaError
+  return
 }
 
 
 module.exports = {
   verify: verify,
   space: space,
-  error: schemaError,
 }
