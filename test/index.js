@@ -10,6 +10,8 @@ const Kefir = require('kefir')
     ...
   ]
 */
+// TODO should support printing something initially
+// TODO should test that some update we didn't make will be pushed to us if relevant
 let script = [
   ['say hello', 'Elsehow says "hello."'],
   ['look', 'Description of the room...'],
@@ -20,10 +22,9 @@ let script = [
 // takes a scrpt s (see format below),
 function runThrough (scrpt, a, t) {
 
-  var checkOutput = () => {}
-  var first = scrpt[0]
-  var rest = scrpt.slice(1)
-  var initialVal = send(t, first[0], first[1])
+  let checkOutput = () => {}
+  let first = scrpt[0]
+  let rest = scrpt.slice(1)
 
   function setToExpect (t, out, cb) {
     checkOutput = (x) => {
@@ -41,6 +42,7 @@ function runThrough (scrpt, a, t) {
     })
   }
 
+  let initialVal = send(t, first[0], first[1])
   return rest.reduce((acc, cur) => {
     return acc.flatMap(() => {
       return send(t, cur[0], cur[1])
@@ -48,15 +50,8 @@ function runThrough (scrpt, a, t) {
   }, initialVal)
 }
 
-// tests proper -----------------------------------------------------------/
-
-const ages = require('..')
-// smells like recursion
-// a reduce, where the accumulator is the send stream,
-// to which we can flatmap something and pas it on
-// at the last step, we .onValue(t.end)
-
 test('test script', t => {
+  const ages = require('..')
   let ag = ages()
   runThrough(script, ag, t).onValue(t.end)
 })

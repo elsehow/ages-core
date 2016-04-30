@@ -1,13 +1,31 @@
 'use strict'
+//ages-specific
+const spatial = require('./spatial')
 const Kefir = require('kefir')
 const EventEmitter = require('events').EventEmitter
-const streamAndEmitter = (em, ev) => {
+
+// TODO in the future, will take /at least/ a hyperkv-like object, and a starting location
+// TODO real database management in the future as wel, with level+configruable db location
+// TODO ~/.ages by default i figure
+function newKv () {
+  let hyperkv = require('hyperkv')
+  let hyperlog = require('hyperlog')
+  let memdb = require('memdb')
+  let log = hyperlog(memdb(), { valueEncoding: 'json' })
+  return hyperkv({
+    log: log,
+    db: memdb(),
+  })
+}
+
+function streamAndEmitter (em, ev) {
   return [
     (x) => em.emit(ev, x),
     Kefir.fromEvents(em, ev)
   ]
 }
-const coreCommands = (outF) => {
+
+function coreCommands (outF) {
   return [
     {"say {something}": ({something}) => {
       outF(`Elsehow says \"${something}.\"`)
@@ -21,10 +39,10 @@ const coreCommands = (outF) => {
   ]
 }
 
-// TODO in the future, will take /at least/ a hyperkv-like object, and a starting location
 // TODO in the further future, probably an identity and a relay server, as well
 function ages () {
 
+  let log = newKv() // TODO manage a db from disk
   let emitter = new EventEmitter()
   let [inputF, inputS] = streamAndEmitter(emitter, 'input')
   let [outputF, outputS] = streamAndEmitter(emitter, 'output')
@@ -34,9 +52,8 @@ function ages () {
   inputS
     .map(cmdr) // warning - side-effecty
     .filter(x => x==false)
-    .onValue(() => {
-      outputF("I didn't understand that, sorry.")
-    })
+    .map(x => "I didn't understand that, sorry.")
+    .onValue(outputF)
 
   return {
     inputF: inputF,

@@ -3,7 +3,7 @@
   "license": "BSD-3-Clause",
   "main": "src/index.js",
   "scripts": {
-    "test": "tape test/*.js | tap-spec",
+    "test": "tape test/index.js | tap-spec",
     "watch": "runwatch **/*.js -r \"npm test\""
   },
   "devDependencies": {
