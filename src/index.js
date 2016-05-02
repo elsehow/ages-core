@@ -1,29 +1,43 @@
 'use strict'
-//ages-specific
 const spatial = require('./spatial')
+const loadKv = require('./load-kv')
 const Kefir = require('kefir')
 const EventEmitter = require('events').EventEmitter
-
-// TODO in the future, will take /at least/ a hyperkv-like object, and a starting location
-// TODO real database management in the future as wel, with level+configruable db location
-// TODO ~/.ages by default i figure
-function newKv () {
-  let hyperkv = require('hyperkv')
-  let hyperlog = require('hyperlog')
-  let memdb = require('memdb')
-  let log = hyperlog(memdb(), { valueEncoding: 'json' })
-  return hyperkv({
-    log: log,
-    db: memdb(),
-  })
-}
-
-function streamAndEmitter (em, ev) {
+function streamAndEmitF (em, ev) {
   return [
     (x) => em.emit(ev, x),
     Kefir.fromEvents(em, ev)
   ]
 }
+
+function printRoomF (outF) {
+
+  function printCommands (edges) {
+    if (edges.length){
+      return edges.reduce((acc,cur, i) => {
+        if (i === edges.length-1)
+          return `${acc} *${cur.command}*.`
+        return `${acc} *${cur.command}* or`
+      }, '\n\nFrom here, you can')
+    }
+    return ''
+  }
+
+  return function (err, res) {
+    if (res) {
+      let desc = `${res.name}\n\n${res.description}`
+      let commands = printCommands(res.edges)
+      return outF(desc+commands)
+    }
+    outF(`There is nothing here. You can "describe ${myCurrentPlace}", if you would like.` )
+  }
+}
+
+// storage/datastructures
+// TODO should get db on disk - pass in opts.path or something
+const spaces = spatial(loadKv())
+// HACK set current room
+const myCurrentPlace = 'a quiet library'
 
 function coreCommands (outF) {
   return [
@@ -31,7 +45,16 @@ function coreCommands (outF) {
       outF(`Elsehow says \"${something}.\"`)
     }},
     {"look": () => {
-      outF(`Description of the room...`)
+      spaces.find(myCurrentPlace, printRoomF(outF))
+    }},
+    {"describe {place}: {description}": ({place, description}) => {
+      spaces.describe(place, description, printRoomF(outF))
+    }},
+    {'you can "{command}" to {place}': ({place, command}) => {
+      spaces.link(myCurrentPlace, place, command, printRoomF(outF))
+    }},
+    {'you cannot "{command}"': ({ command }) => {
+      spaces.unlink(myCurrentPlace, command, printRoomF(outF))
     }},
     {":{does}": ({does}) => {
       outF(`Elsehow ${does}`)
@@ -39,18 +62,23 @@ function coreCommands (outF) {
   ]
 }
 
-// TODO in the further future, probably an identity and a relay server, as well
 function ages () {
 
-  let log = newKv() // TODO manage a db from disk
+  // inputs/outputs
   let emitter = new EventEmitter()
-  let [inputF, inputS] = streamAndEmitter(emitter, 'input')
-  let [outputF, outputS] = streamAndEmitter(emitter, 'output')
+  let [inputF, inputS] = streamAndEmitF(emitter, 'input')
+  let [outputF, outputS] = streamAndEmitF(emitter, 'output')
   let cmdr = require('text-commander')(coreCommands(outputF))
 
-  let em2 = new EventEmitter()
+  // TODO we need some way to update the ocmmands when we move to different rooms
+  // TODO something that emits on a movement would do the tric
+  // TODO or a stream of movements
+  // TODO but primarily we need a stream of current movement verbs/commands
+  // TODO and this all starts with being ins ome place to begin with; getting that initial fetch that lets us know where we are
+
+  // map
   inputS
-    .map(cmdr) // warning - side-effecty
+    .map(cmdr) // HACK cdmr function is side-effecy
     .filter(x => x==false)
     .map(x => "I didn't understand that, sorry.")
     .onValue(outputF)
@@ -61,5 +89,5 @@ function ages () {
   }
 }
 
-
 module.exports = ages
+// probably will add a relay server to this framework as well

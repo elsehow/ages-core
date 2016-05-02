@@ -14,11 +14,22 @@ const Kefir = require('kefir')
 // TODO should test that some update we didn't make will be pushed to us if relevant
 let script = [
   ['say hello', 'Elsehow says "hello."'],
-  ['look', 'Description of the room...'],
-  ['look at door', 'Description of the room...'],
+  ['look', 'There is nothing here. You can "describe a quiet library", if you would like.'],
   [':shakes his head. "It\'s majestic," he says.', 'Elsehow shakes his head. "It\'s majestic," he says.'],
-  ['fall through the book', 'I didn\'t understand that, sorry.']
+  ['describe a quiet library: a book sits on a pedestal', `a quiet library
+
+a book sits on a pedestal`],
+  ['fall through the book', 'I didn\'t understand that, sorry.'],
+  ['you can "fall through the book" to a warm island dock', `a quiet library
+
+a book sits on a pedestal
+
+From here, you can *fall through the book*.`],
+  ['fall through the book', 'There is nothing here. You can "describe a warm island dock", if you would like.'],
 ]
+
+
+
 // takes a scrpt s (see format below),
 function runThrough (scrpt, a, t) {
 
