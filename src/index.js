@@ -1,93 +1,46 @@
 'use strict'
-const spatial = require('./spatial')
-const loadKv = require('./load-kv')
-const Kefir = require('kefir')
-const EventEmitter = require('events').EventEmitter
-function streamAndEmitF (em, ev) {
-  return [
-    (x) => em.emit(ev, x),
-    Kefir.fromEvents(em, ev)
-  ]
-}
+const spatial        = require('./spatial')
+const loadKv         = require('./load-kv')
+const streamAndEmitF = require('./stream-and-emitF')
+const Kefir          = require('kefir')
+const tc             = require('text-commander')
 
-function printRoomF (outF) {
+// retruns a stream
+function commands (spaces, input) {
 
-  function printCommands (edges) {
-    if (edges.length){
-      return edges.reduce((acc,cur, i) => {
-        if (i === edges.length-1)
-          return `${acc} *${cur.command}*.`
-        return `${acc} *${cur.command}* or`
-      }, '\n\nFrom here, you can')
-    }
-    return ''
-  }
+  return Kefir.fromNodeCallback(cb => {
 
-  return function (err, res) {
-    if (res) {
-      let desc = `${res.name}\n\n${res.description}`
-      let commands = printCommands(res.edges)
-      return outF(desc+commands)
-    }
-    outF(`There is nothing here. You can "describe ${myCurrentPlace}", if you would like.` )
-  }
-}
-
-// storage/datastructures
-// TODO should get db on disk - pass in opts.path or something
-const spaces = spatial(loadKv())
-// HACK set current room
-const myCurrentPlace = 'a quiet library'
-
-function coreCommands (outF) {
-  return [
-    {"say {something}": ({something}) => {
-      outF(`Elsehow says \"${something}.\"`)
-    }},
-    {"look": () => {
-      spaces.find(myCurrentPlace, printRoomF(outF))
-    }},
-    {"describe {place}: {description}": ({place, description}) => {
-      spaces.describe(place, description, printRoomF(outF))
-    }},
-    {'you can "{command}" to {place}': ({place, command}) => {
-      spaces.link(myCurrentPlace, place, command, printRoomF(outF))
-    }},
-    {'you cannot "{command}"': ({ command }) => {
-      spaces.unlink(myCurrentPlace, command, printRoomF(outF))
-    }},
-    {":{does}": ({does}) => {
-      outF(`Elsehow ${does}`)
-    }},
-  ]
+    let m = tc([
+      {'look': () => {
+        spaces.find(currentLoc, cb)
+      }},
+      {'describe {place}: {name}': ({place, name}) => {
+        spaces.describe(place, name, cb)
+      }},
+      {'you can \'{command}\' to {place}': ({command, place}) => {
+        spaces.link(currentLoc, place, command, cb)
+      }},
+      {'you cannot {command}': ({command}) => {
+        spaces.unlink(currentLoc, command, cb)
+      }},
+    ])(input)
+    if (!m)
+      cb(null, "Sorry, I don't understand that.")
+  })
 }
 
 function ages () {
-
-  // inputs/outputs
-  let emitter = new EventEmitter()
-  let [inputF, inputS] = streamAndEmitF(emitter, 'input')
-  let [outputF, outputS] = streamAndEmitF(emitter, 'output')
-  let cmdr = require('text-commander')(coreCommands(outputF))
-
-  // TODO we need some way to update the ocmmands when we move to different rooms
-  // TODO something that emits on a movement would do the tric
-  // TODO or a stream of movements
-  // TODO but primarily we need a stream of current movement verbs/commands
-  // TODO and this all starts with being ins ome place to begin with; getting that initial fetch that lets us know where we are
-
-  // map
-  inputS
-    .map(cmdr) // HACK cdmr function is side-effecy
-    .filter(x => x==false)
-    .map(x => "I didn't understand that, sorry.")
-    .onValue(outputF)
-
+  let [inputS, inputF] = streamAndEmitF()
+  let spaces = spatial(loadKv())
+  let responseS = (input) => commands(spaces, input)
+  let outputS = inputS.flatMap(responseS)
+  // HACK set the current location
+  let currentLoc = 'a quiet library'
+  spaces.describe('a quiet library', 'a book sits on a pedestal', ()=>{})
   return {
-    inputF: inputF,
     outputS: outputS,
+    inputF: inputF,
   }
 }
 
 module.exports = ages
-// probably will add a relay server to this framework as well
