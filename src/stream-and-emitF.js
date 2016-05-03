@@ -1,3 +1,4 @@
+'use strict'
 const Kefir = require('kefir')
 const EventEmitter = require('events').EventEmitter
 
