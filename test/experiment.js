@@ -9,45 +9,52 @@ let spatial = require('../src/spatial')
 let descriptions = require('../src/descriptions')
 let kv = require('../src/load-kv')()
 let spaces = spatial(kv)
-// TODO could make a readstream starting
-// at the last place i've stored in the log
 let readStream = spaces.createReadStream({ live: true })
-let [movementS, movementEmitF] = streamAndEmitF()
-let movementCb = (err, res) => {
-  console.log('MOVEMENT CB', err, res) // TODO debug
-  movementEmitF(res)
-}
-let moveTo = (place) => spaces.find(place, movementCb)
-// spaceS is a stream of updates to places in the world.
 let spaceS = Kefir.fromEvents(readStream, 'data')
-// updates to places we're currently in.
-let updateToCurLocS = spaceS.combine(movementS.filter(truthy), sameName)
-//movementS.log('movement') // TODO debug
-// currentLocS is a stream of updates to the place we're currently in
-// they come either from having moved,
-// or from modifications to our surroundings.
-let currentLocS = spaceS.filterBy(updateToCurLocS).merge(movementS)
-let edgeToTextCommand = (e) => obj(e.command, () => moveTo(e.goesTo))
-let placeToTextCommands = (pl) => pl.edges.map(edgeToTextCommand)
-let commandsAt = (loc) => placeToTextCommands(loc).concat(globalCommands(spaces, loc))
+
+function Perceiver (inputS, spaceS, startingLocation) {
+  // TODO could make a readstream starting
+  // at the last place i've stored in the log
+  let [movementS, movementEmitF] = streamAndEmitF()
+  let movementCb = (err, res) => {
+    console.log('MOVEMENT CB', err, res) // TODO debug
+    movementEmitF(res)
+  }
+  let moveTo = (place) => spaces.find(place, movementCb)
+  moveTo(startingLocation)
+  let updateToCurLocS = spaceS.combine(movementS.filter(truthy), sameName)
+  let currentLocS = spaceS.filterBy(updateToCurLocS).merge(movementS)
+  //movementS.log('movement') // TODO debug
+  // currentLocS is a stream of updates to the place we're currently in
+  // they come either from having moved,
+  // or from modifications to our surroundings.
+  let edgeToTextCommand = (e) => obj(e.command, () => moveTo(e.goesTo))
+  let placeToTextCommands = (pl) => pl.edges.map(edgeToTextCommand)
+  let commandsAt = (loc) => placeToTextCommands(loc).concat(globalCommands(spaces, loc))
+  let currentCommandS = currentLocS.map(commandsAt).map(require('text-commander'))
+  currentLocS.log('seeing loc')
+  Kefir.zip([inputS, currentCommandS]).onValue(([input, cmdr]) => cmdr(input))
+  return currentLocS
+}
+
 // produce currentCommandS - a stream of all the commands we can issue
 // these update along with currentLocS, since the commands available to us
 // are a function of where we are in the world, at any given time.
 // currentCommandS is a list of functions, each one can take some input and produce a side-effect
-let currentCommandS = currentLocS.map(commandsAt).map(require('text-commander'))
 
 let inputS = Kefir.merge([
-  Kefir.later(1200, 'fall through the book'),
-  Kefir.later(1500, "you can 'jump into the water' to some water"),
-  Kefir.later(2000, "jump into the water"),
+  Kefir.later(100, 'describe: a book sits on a pedestal'),
+  Kefir.later(200, 'you can fall through the book to a warm island dock'),
+  Kefir.later(300, 'fall through the book'),
+  Kefir.later(400, 'describe: the water is warm'),
+  Kefir.later(500, "you can 'jump into the water' to some water"),
+  Kefir.later(600, "jump into the water"),
 ])
-inputS.log('INPUT') // TODO debug
-Kefir.zip([inputS, currentCommandS]).onValue(([input, cmdr]) => cmdr(input))
 
-
+let perceptionS = Perceiver(inputS, spaceS, 'the library') 
 // print updates to current location
-currentLocS.map(descriptions.space).log()
-
+perceptionS.map(descriptions.space).log()
+inputS.log('INPUT') // TODO debug
 
 
 
@@ -66,9 +73,12 @@ the question is how to deal with the rest of the processing pipeline
 function globalCommands (sp, curLoc) {
   //console.log('making commands for', curLoc) //TODO debug
   // TODO need a way to error
-  let cb = (err, res) => {}
-  //    if (err)
-  //      console.log('ERR!', err)
+  let cb = (err, res) => {
+      if (err)
+        console.log('ERR!', err)
+    else
+      console.log('RES!', res)
+  }
   return [
     //{ 'look' :  _ => sp.find(curLoc, movementCb) },
     { 'describe: {description}': o => sp.describe(curLoc.name, o.description, cb) },
@@ -79,35 +89,3 @@ function globalCommands (sp, curLoc) {
 }
 
 
-
-
-
-// HACK if i have no current location,
-// make up the library and set my location to that
-// TODO should load my current location from preferences
-spaces.describe(
-  'the library',
-  'a book sits on a pedestal',
-  (err, res) => {
-    moveTo('the library')
-  }
-)
-
-// link the library elsewhere
-setTimeout( () => {
-  spaces.link(
-    'the library',
-    'a warm island dock',
-    'fall through the book',
-    (err, res) => {
-    })
-}, 500)
-
-// describe a new place
-setTimeout( () => {
-  spaces.describe(
-    'a warm island dock',
-    'the water is warm and cool',
-    (err, res) => {
-    })
-}, 1000)
