@@ -21,7 +21,7 @@
     "lodash.isstring": "^4.0.1",
     "sanitizer": "^0.1.3",
     "templateer": "^1.0.1",
-    "text-commander": "^1.1.1",
+    "text-commander": "^2.0.0",
     "through2": "^2.0.1"
   }
 }
