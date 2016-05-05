@@ -54,11 +54,14 @@ function firstValid (obj) {
 }
 
 // recursively find the first val *that matches the schema*
-function wrapGet (cb) {
+function wrapGet (cb, pl) {
   return (err, res) => {
     if (err)
       return cb(err, res)
-    return cb(err, firstValid(res))
+    let v = firstValid(res)
+    if (v)
+      return cb(err, v)
+    return cb(err, { name: pl })
   }
 }
 
@@ -74,7 +77,7 @@ function wrapPut (cb) {
 function spatial (hkv) {
 
   function find (pl, cb) {
-    hkv.get(pl, wrapGet(cb))
+    hkv.get(pl, wrapGet(cb, pl))
   }
 
   function describe (pl, desc, cb) {
@@ -108,16 +111,17 @@ function spatial (hkv) {
   }
 
   function unlink (pl, cmd, cb) {
+    let noCmdErr = new Error(`No such command "${cmd}" found at place "${pl}"`)
     find(pl, (err, p) => {
       if (err)
         return cb(err, p)
-      if (!p)
-        return cb(new Error(`No such place ${pl}`))
+      if (!p.edges)
+        return cb(noCmdErr)
       let filtered = p.edges.filter(e => {
         return e.command !== cmd
       })
       if (filtered.length == p.edges.length)
-        return cb(`No such command "${cmd}" found at place "${pl}"`, p)
+        return cb(noCmdErr, p)
       p.edges = filtered
       return hkv.put(pl, p, wrapPut(cb))
     })
