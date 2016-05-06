@@ -3,6 +3,7 @@ const Kefir = require('kefir')
 const spatial = require('../src/spatial')
 const obj = (k, p) => {let o = {}; o[k] = p; return o}
 const truthy = x => !!x
+const not = f => x => !f(x)
 
 // returns a fn (String input) -> Kefir Stream
 // resulting gstream will contain a single value - a place in the world
@@ -12,7 +13,11 @@ function commands (sp, locName) {
   let streamFromNodeCb = (fn, ...args) =>
       Kefir.fromNodeCallback(cb => fn.apply(this, args.concat(cb)))
 
-  let findPlace = (pl) => streamFromNodeCb(sp.find, pl)
+  let findPlace = (pl) => streamFromNodeCb(sp.find, pl).map(p => {
+    if (p)
+      return p
+    return { name: pl }
+  })
 
   let genericCommands = [
     { 'look' :  () =>
@@ -32,17 +37,19 @@ function commands (sp, locName) {
   ]
 
   let edgeToTextCommand = (e) => obj(e.command, () => findPlace(e.goesTo))
-  let placeToTextCommands = (pl) => pl ? pl.edges.map(edgeToTextCommand) : []
+  let placeToTextCommands = (pl) => pl.edges ? pl.edges.map(edgeToTextCommand) : []
   let locationSpecificCommandS = findPlace(locName).map(placeToTextCommands)
   let commandsHereS = locationSpecificCommandS.map(lcs => lcs.concat(genericCommands))
 
   // return a stream
-  return commandsHereS.map(require('text-commander')).map(commander => {
-    // return a fn (input) => that handles null values
-    return i => {
-      let r = commander(i)
-      return r ? r : Kefir.constant(undefined)
-    }
+  return commandsHereS
+    .map(require('text-commander'))
+    .map(commander => {
+      // return a fn (input) => that handles falsey values
+      return i => {
+        let r = commander(i)//.filter(truthy)
+      return r ? r : Kefir.constantError('I didn\'t understand that')
+      }
   })
 }
 
@@ -56,22 +63,33 @@ function currentLocationUpdateS (sp, locName) {
 }
 
 // returns perceptionS
-function Perceiver (inS, sp, locName) {
-  //let perceptionS = Kefir.pool()
+function PerceptionS (inEm, inEv, sp, locName) {
+  console.log('LOADING', locName)
+  inEm.removeAllListeners(inEv)
   let irS = inputReactionS(inS, sp, locName)
   let clS = currentLocationUpdateS(sp, locName)
-//  //currentLocUpdateS.flatMap(l => comm)
-//  // get the command parsing function at this place, and
-//  // run user input through it, to produce a stream of perceived places
+  return Kefir.merge([irS, clS])
+}
+
+
 //  // the Perceiver moves itself - thats what causes this recursive loopiness
-  return Kefir.merge([irS, clS]).debounce(10) // HACK - should really skipDuplicatesDeep() here
+function Perceiver (inEm, inEv, sp, locName) {
+  return PerceptionS(inEm, inEv, space, locName).flatMapConcat(p => {
+    console.log('PLACE', p)
+    return PerceptionS(inEm, inEv, space, p.name)
+  })
 }
 
 
 
-
-
 // testing stuff -----------------------------------------------------------
+function emitterFromStream (s, evN) {
+  let EventEmitter = require('events').EventEmitter
+  let emitter = new EventEmitter()
+  s.onValue(v => emitter.emit(evN, v))
+  return emitter
+}
+
 let inputS = Kefir.sequentially(25, [
   'look',
   'describe: a book sits on a pedestal',
@@ -87,11 +105,14 @@ let inputS = Kefir.sequentially(25, [
 
 let kv = require('../src/load-kv')()
 let space = spatial(kv)
-let perceptionS = Perceiver(inputS, space, 'the library')
+let emitter = emitterFromStream(inputS, 'input')
+let perceptionS = Perceiver(emitter, 'input', space, 'the library')
 
-
+let dummyCb = () => {}
 inputS
+  //.onValue(dummyCb)
   .log('INPUT')
 perceptionS
-  .map(p => p ? p.name : undefined)
+  .map(p => p.name)
+  //.onValue(dummyCb)
   .log('PERCEIVED')
