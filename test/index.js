@@ -2,11 +2,6 @@
 const ages = require('..')
 let ag = ages()
 
-ag.outputS.log('output')
-process.stdin.on('data', b => {
-  ag.inputF(b.toString().trim())
-})
-
 
 
 //const Kefir = require('kefir')
