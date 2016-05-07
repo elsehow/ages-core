@@ -24,17 +24,16 @@ function Perceiver (inputS, spaceS, startingLocation) {
   moveTo(startingLocation)
   let updateToCurLocS = spaceS.combine(movementS.filter(truthy), sameName)
   let currentLocS = spaceS.filterBy(updateToCurLocS).merge(movementS)
-  //movementS.log('movement') // TODO debug
   // currentLocS is a stream of updates to the place we're currently in
   // they come either from having moved,
   // or from modifications to our surroundings.
   let edgeToTextCommand = (e) => obj(e.command, () => moveTo(e.goesTo))
   let placeToTextCommands = (pl) => pl.edges.map(edgeToTextCommand)
   let commandsAt = (loc) => placeToTextCommands(loc).concat(globalCommands(spaces, loc))
-  let currentCommandS = currentLocS.map(commandsAt).map(require('text-commander'))
+  let currentCommandS = currentLocS.filter(truthy).map(commandsAt).map(require('text-commander'))
   currentLocS.log('seeing loc')
-  Kefir.zip([inputS, currentCommandS]).onValue(([input, cmdr]) => cmdr(input))
-  return currentLocS
+  return Kefir.zip([inputS, currentCommandS]).onValue(([input, cmdr]) => cmdr(input))
+  return //currentLocS
 }
 
 // produce currentCommandS - a stream of all the commands we can issue
