@@ -143,23 +143,23 @@ test('find() will sanitize a place with script tags', t => {
   })
 })
 
-test('find() calls back null, undefined on err, place, respectively, if we try to get a place that doesnt exist', t => {
+test('find() calls back null, { place: \'whateverName\'} if we try to get a place that doesnt exist', t => {
   let sp = spatial(makeHyperkv())
   sp.find('gobbldigook', (err, res) => {
     t.deepEqual(err, null)
-    t.deepEqual(res, undefined)
+    t.deepEqual(res, { name: 'gobbldigook' })
     t.end()
   })
 })
 
-test('find() calls back null, undefined on err, place, respectively, if we get something with a bad schema from the hyperkv', t => {
+test('find() calls back null, { place: \'whateverName\'} if we get something with a bad schema from the hyperkv', t => {
   let hkv = makeHyperkv()
   let sp = spatial(hkv)
   hkv.put(placeName1, { bad: 'thing'}, (err, res) => {
     t.ok(res)
     sp.find(placeName1, (err, res) => {
       t.deepEqual(err, null)
-      t.deepEqual(res, undefined)
+      t.deepEqual(res, { name: placeName1 })
       t.end()
     })
   })
