@@ -16,17 +16,15 @@ test('Single percept outputs the correct objects for given commands', t => {
     'look',
     "you can 'jump into the water' to some water", // define edges before description
     'describe: the water is warm', // define description after edges
-    "jump into the water",
+    "jump into the water", // edges are preserved, even though description came after link definition
     "you can 'swim far out into the nothing' to the nothing",
   ]
   let expected = [
     { name: 'a quiet library' },
     { name: 'a quiet library',
-      description: 'a book sits on a pedestal',
-      edges: [] },
+      description: 'a book sits on a pedestal' },
     { name: 'a quiet library',
-      description: 'a book sits on a pedestal',
-      edges: [] },
+      description: 'a book sits on a pedestal' },
     { name: 'a quiet library',
       description: 'a book sits on a pedestal',
       edges:
@@ -40,6 +38,11 @@ test('Single percept outputs the correct objects for given commands', t => {
     { name: 'a warm island dock',
       description: 'the water is warm',
       edges: [ { command: 'jump into the water', goesTo: 'some water' } ] },
+    { name: 'some water' },
+    { name: 'some water',
+      edges: 
+      [ { command: 'swim far out into the nothing',
+          goesTo: 'the nothing' } ] },
   ]
   t.plan(inputs.length)
   var i = 0
@@ -47,9 +50,8 @@ test('Single percept outputs the correct objects for given commands', t => {
     t.deepEqual(v, expected[i], JSON.stringify(v))
     i++
   }
-  let inputS = Kefir.sequentially(2, inputs)
+  let inputS = Kefir.sequentially(25, inputs)
   let perceptionS = perceiver(inputS, space, 'a quiet library')
-  perceptionS.log()
-  //perceptionS.onValue(check)
-  //perceptionS.onError(check)
+  perceptionS.onValue(check)
+  perceptionS.onError(check)
 })

@@ -98,8 +98,6 @@ function spatial (hkv) {
     find(pl1, (err, p) => {
       if (err)
         return cb(err, p)
-      if (!p.description && !p.edges)
-        return cb(new Error(`No such place ${pl1}`))
       if (p.edges)
         p.edges.push(lnk)
       else
