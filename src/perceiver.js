@@ -27,9 +27,17 @@ function perceiver (inS, sp, locN) {
     return commandFnS(sp, l.name)
   })
 
-  return Kefir.zip([inS, currentCommandS]).flatMapLatest(([input, cmdr]) => {
+  var curLoc = null
+  return Kefir.zip([inS, currentCommandS]).flatMap(([input, cmdr]) => {
     let rxS = cmdr(input)
-    rxS.onValue(updateLocF)
+    rxS.onValue(l => {
+      curLoc = l
+      updateLocF(l)
+    })
+    // TODO can i take out a step here, by passing in the perceptions direclty to commander?
+    // TODO instead of htis extra lookup by name?
+    // TODO that way i also dont need to keep mutable curLoc val around
+    rxS.onError(e => updateLocF(curLoc))
     return rxS
   })
 

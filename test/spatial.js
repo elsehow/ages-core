@@ -109,7 +109,6 @@ test('can unlink one location from another via its command', t => {
   })
 })
 
-
 // edge & error cases ------------------------------------------------------------------------
 
 test('describe() calls back error if we mess up types or something', t => {
@@ -216,9 +215,28 @@ test('createReadStream will feed only verified new nodes - will ignore funny nod
   sp.describe(placeName1, placeDesc1, (e1, r1) => {
     // put bad thing on the log
     hkv.put('bad thing', {bad: 'thing'}, (e2, r2) => {
-      // put a good thing on the log
+      // put a good thing on the lo
       sp.describe(placeName2, placeDesc2, (e3, r3) => {
       })
     })
   })
 })
+
+test('describing a place that already has links will preserve the links at that place', t => {
+  let hkv = makeHyperkv()
+  let sp = spatial(hkv)
+  sp.describe(placeName1, placeDesc1, (err, res) => {
+    sp.link(placeName1, placeName2, command, (err, res) => {
+      sp.describe(placeName1, placeDesc2, (err, res) => {
+        t.deepEqual(res.name, placeName1)
+        t.deepEqual(res.description, placeDesc2)
+        t.deepEqual(res.edges[0], {
+          command: command,
+          goesTo: placeName2,
+        })
+        t.end()
+      })
+    })
+  })
+})
+

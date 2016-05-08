@@ -3,7 +3,8 @@
   "license": "BSD-3-Clause",
   "main": "src/index.js",
   "scripts": {
-    "test": "tape test/*.js | tap-spec",
+    "test": "tape test/spatial.js | tap-spec",
+    "example": "node example/cli-client.js",
     "watch": "runwatch **/*.js -r \"npm test\""
   },
   "devDependencies": {
@@ -18,9 +19,11 @@
   "dependencies": {
     "deep-equal": "^1.0.1",
     "kefir": "^3.2.1",
+    "level": "^1.4.0",
     "lodash.every": "^4.3.0",
     "lodash.isstring": "^4.0.1",
     "sanitizer": "^0.1.3",
+    "subleveldown": "^2.1.0",
     "templateer": "^1.0.1",
     "text-commander": "^2.0.0",
     "through2": "^2.0.1"

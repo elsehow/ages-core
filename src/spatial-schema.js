@@ -25,13 +25,17 @@ const sanitizer = require('sanitizer')
 */
 
 function validate (v) {
-  return isString(v.name) &&
-    isString(v.description) &&
-    ((v.edges &&
-      (v.edges.length==0 || v.edges.length>0) &&
-       every(v.edges.map(e => {
-         return isString(e.command) && isString(e.goesTo)
-       }))) || !v.edges)
+  function edges (es) {
+    return ((es &&
+      (es.length==0 || es.length>0) &&
+      every(es.map(e => {
+        return isString(e.command) && isString(e.goesTo)
+      }))) || !es)
+  }
+  // value can have a string name, string description, and edges
+  return (isString(v.name) && isString(v.description) && edges(v.edges)) ||
+  //  value can have string name, no description, and some edges
+    (isString(v.name) && !v.description && v.edges && v.edges.length && edges(v.edges))
 }
 
 /*

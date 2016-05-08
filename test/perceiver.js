@@ -11,13 +11,13 @@ test('Single percept outputs the correct objects for given commands', t => {
     'describe: a book sits on a pedestal',
     'look',
     "you can 'fall through the book' to a warm island dock",
+    'fall through eth book', // this should error, but recover
     'fall through the book',
     'look',
-    'describe: the water is warm',
-    'look',
-    "you can 'jump into the water' to some water",
+    "you can 'jump into the water' to some water", // define edges before description
+    'describe: the water is warm', // define description after edges
     "jump into the water",
-    "swim far out into the nothing",
+    "you can 'swim far out into the nothing' to the nothing",
   ]
   let expected = [
     { name: 'a quiet library' },
@@ -29,22 +29,17 @@ test('Single percept outputs the correct objects for given commands', t => {
       edges: [] },
     { name: 'a quiet library',
       description: 'a book sits on a pedestal',
-      edges: 
+      edges:
       [ { command: 'fall through the book',
           goesTo: 'a warm island dock' } ] },
+    'I didn\'t understand, "fall through eth book."',
     { name: 'a warm island dock' },
     { name: 'a warm island dock' },
     { name: 'a warm island dock',
-      description: 'the water is warm',
-      edges: [] },
+      edges: [ { command: 'jump into the water', goesTo: 'some water' } ] },
     { name: 'a warm island dock',
       description: 'the water is warm',
-      edges: [] },
-    { name: 'a warm island dock',
-    description: 'the water is warm',
-    edges: [ { command: 'jump into the water', goesTo: 'some water' } ] },
-    { name: 'some water' },
-    'I didn\'t understand, "swim far out into the nothing."',
+      edges: [ { command: 'jump into the water', goesTo: 'some water' } ] },
   ]
   t.plan(inputs.length)
   var i = 0
@@ -54,6 +49,7 @@ test('Single percept outputs the correct objects for given commands', t => {
   }
   let inputS = Kefir.sequentially(2, inputs)
   let perceptionS = perceiver(inputS, space, 'a quiet library')
-  perceptionS.onValue(check)
-  perceptionS.onError(check)
+  perceptionS.log()
+  //perceptionS.onValue(check)
+  //perceptionS.onError(check)
 })

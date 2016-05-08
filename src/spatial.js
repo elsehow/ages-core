@@ -81,12 +81,13 @@ function spatial (hkv) {
   }
 
   function describe (pl, desc, cb) {
-    let p = schema.space(pl, desc)
-    if (p) {
-      hkv.put(pl, p, wrapPut(cb))
-      return
-    }
-    cb(schemaError, null)
+    find(pl, (err, p) => {
+      p.description = desc
+      let v = schema.verify(p)
+      if (v)
+        return hkv.put(pl, p, wrapPut(cb))
+      cb(schemaError, null)
+    })
   }
 
   function link (pl1, pl2, cmd, cb) {
@@ -97,7 +98,7 @@ function spatial (hkv) {
     find(pl1, (err, p) => {
       if (err)
         return cb(err, p)
-      if (!p)
+      if (!p.description && !p.edges)
         return cb(new Error(`No such place ${pl1}`))
       if (p.edges)
         p.edges.push(lnk)

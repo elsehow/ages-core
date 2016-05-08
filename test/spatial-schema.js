@@ -58,6 +58,10 @@ test('should accept good place objects', t => {
   lazy.name = good.name
   lazy.description = good.description
   t.ok(verify(lazy), 'doesnt mind if edges list is missing')
+  let lazy2 = {}
+  lazy2.name = good.name
+  lazy2.edges = good.edges
+  t.ok(verify(lazy2), 'doesnt mind if description is missing (just name+edges)')
   t.end()
 })
 
