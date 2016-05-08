@@ -164,11 +164,17 @@ test('find() calls back null, { place: \'whateverName\'} if we get something wit
   })
 })
 
-test('link() calls back error if we try to link FROM a place that doesnt exist', t => {
+test('if we try to link() FROM a place that doesnt exist, will return { name, edges }', t => {
   let sp = spatial(makeHyperkv())
   sp.link(placeName1, placeName2, command, (err, res) => {
-    t.ok(err)
-    t.notOk(res)
+    t.notOk(err)
+    console.log(res)
+    t.deepEqual(res.name, placeName1)
+    t.notOk(res.description)
+    t.deepEqual(res.edges[0], {
+      command: command,
+      goesTo: placeName2,
+    })
     t.end()
   })
 })
